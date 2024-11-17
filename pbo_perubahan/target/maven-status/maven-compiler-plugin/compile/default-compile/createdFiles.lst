@@ -1,0 +1,6 @@
+com\and\is\pbo_perubahan\ui\TaskForm.class
+com\and\is\pbo_perubahan\model\Task.class
+com\and\is\pbo_perubahan\Pbo_perubahan.class
+com\and\is\pbo_perubahan\ui\TaskAppGUI.class
+com\and\is\pbo_perubahan\service\FileStorage.class
+com\and\is\pbo_perubahan\service\TaskManager.class
