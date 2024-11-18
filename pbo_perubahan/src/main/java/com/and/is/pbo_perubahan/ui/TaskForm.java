@@ -1,16 +1,19 @@
 package com.and.is.pbo_perubahan.ui;
 
 import com.and.is.pbo_perubahan.model.Task;
-
+import com.toedter.calendar.JDateChooser;
 import javax.swing.*;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.time.ZoneId;
+
 
 public class TaskForm extends JDialog {
     private JTextField titleField;
     private JTextArea descriptionArea;
-    private JTextField dueDateField;
+    private JDateChooser dueDatePicker;
     private JTextField categoryField;
     private JComboBox<String> priorityBox;
     private JCheckBox completedCheckBox;
@@ -30,9 +33,16 @@ public class TaskForm extends JDialog {
 
         titleField = new JTextField(task != null ? task.getTitle() : "");
         descriptionArea = new JTextArea(task != null ? task.getDescription() : "");
-        dueDateField = new JTextField(task != null && task.getDueDate() != null
-                ? task.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-                : "");
+
+        // Initialize the date chooser
+        dueDatePicker = new JDateChooser();
+        dueDatePicker.setDateFormatString("yyyy-MM-dd HH:mm"); // Set date format
+        if (task != null && task.getDueDate() != null) {
+            dueDatePicker.setDate(Date.from(task.getDueDate()
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()));
+        }
+
         categoryField = new JTextField(task != null ? task.getCategory() : "");
         priorityBox = new JComboBox<>(new String[]{"High", "Medium", "Low"});
         if (task != null) priorityBox.setSelectedItem(task.getPriority());
@@ -42,8 +52,8 @@ public class TaskForm extends JDialog {
         formPanel.add(titleField);
         formPanel.add(new JLabel("Description:"));
         formPanel.add(new JScrollPane(descriptionArea));
-        formPanel.add(new JLabel("Due Date (yyyy-MM-dd HH:mm):"));
-        formPanel.add(dueDateField);
+        formPanel.add(new JLabel("Due Date:"));
+        formPanel.add(dueDatePicker);
         formPanel.add(new JLabel("Category:"));
         formPanel.add(categoryField);
         formPanel.add(new JLabel("Priority:"));
@@ -75,16 +85,19 @@ public class TaskForm extends JDialog {
             JOptionPane.showMessageDialog(this, "Title is required.", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
+        if (dueDatePicker.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Please select a due date.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
         return true;
     }
 
     private void saveTask() {
         String title = titleField.getText().trim();
         String description = descriptionArea.getText().trim();
-        LocalDateTime dueDate = null;
-        if (!dueDateField.getText().trim().isEmpty()) {
-            dueDate = LocalDateTime.parse(dueDateField.getText().trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-        }
+        Date selectedDate = dueDatePicker.getDate();
+        LocalDateTime dueDate = selectedDate != null ?
+                selectedDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
         String category = categoryField.getText().trim();
         String priority = (String) priorityBox.getSelectedItem();
         boolean completed = completedCheckBox.isSelected();
