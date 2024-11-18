@@ -7,8 +7,11 @@ import com.and.is.pbo_perubahan.service.TaskManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class TaskAppGUI extends JFrame {
@@ -39,6 +42,24 @@ public class TaskAppGUI extends JFrame {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins
 
         // Top Panel: Search, Filters, and Sorting
+        JPanel topPanel = createTopPanel();
+        mainPanel.add(topPanel, BorderLayout.NORTH);
+
+        // Center Panel: Task Table
+        taskTable = new JTable();
+        JScrollPane tableScrollPane = new JScrollPane(taskTable);
+        tableScrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins around table
+        mainPanel.add(tableScrollPane, BorderLayout.CENTER);
+
+        // Bottom Panel: CRUD Buttons
+        JPanel bottomPanel = createBottomPanel();
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        // Add main panel to frame
+        add(mainPanel);
+    }
+
+    private JPanel createTopPanel() {
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Inner spacing
@@ -73,25 +94,66 @@ public class TaskAppGUI extends JFrame {
         topPanel.add(searchPanel);
         topPanel.add(filterPanel);
 
-        mainPanel.add(topPanel, BorderLayout.NORTH);
+        return topPanel;
+    }
 
-        // Center Panel: Task Table
-        taskTable = new JTable();
-        JScrollPane tableScrollPane = new JScrollPane(taskTable);
-        tableScrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins around table
-        mainPanel.add(tableScrollPane, BorderLayout.CENTER);
-
-        // Bottom Panel: Action Buttons
+    private JPanel createBottomPanel() {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins
-        JButton saveButton = new JButton("Save");
-        saveButton.addActionListener(e -> saveTasks());
+
+        JButton addButton = new JButton("Add Task");
+        addButton.addActionListener(e -> openTaskForm(null));
+
+        JButton editButton = new JButton("Edit Task");
+        editButton.addActionListener(e -> {
+            int selectedRow = taskTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String title = (String) taskTable.getValueAt(selectedRow, 0);
+                Task task = taskManager.findTaskByTitle(title);
+                openTaskForm(task);
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a task to edit.", "No Task Selected", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        JButton deleteButton = new JButton("Delete Task");
+        deleteButton.addActionListener(e -> {
+            int selectedRow = taskTable.getSelectedRow();
+            if (selectedRow != -1) {
+                String title = (String) taskTable.getValueAt(selectedRow, 0);
+                taskManager.deleteTask(title);
+                refreshTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a task to delete.", "No Task Selected", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        JButton saveButton = new JButton("Save Tasks");
+        saveButton.addActionListener(e -> {
+            try {
+                saveTasks();
+            } catch (IOException ex) {
+                Logger.getLogger(TaskAppGUI.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        });
+
+        bottomPanel.add(addButton);
+        bottomPanel.add(editButton);
+        bottomPanel.add(deleteButton);
         bottomPanel.add(saveButton);
 
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        return bottomPanel;
+    }
 
-        // Add main panel to frame
-        add(mainPanel);
+    private void openTaskForm(Task task) {
+        TaskForm form = new TaskForm(this, task);
+        form.setVisible(true);
+        if (form.isSaved()) {
+            if (task == null) {
+                taskManager.addTask(form.getTask());
+            }
+            refreshTable();
+        }
     }
 
     private void toggleSortOrder() {
@@ -177,8 +239,8 @@ public class TaskAppGUI extends JFrame {
         taskTable.setModel(tableModel);
     }
 
-    private void saveTasks() {
-        FileStorage.save(taskManager.getAllTasks());
-        JOptionPane.showMessageDialog(this, "Tasks saved successfully!");
+    private void saveTasks() throws IOException {
+        FileStorage fileStorage = new FileStorage();
+        fileStorage.saveTasksToFile(taskManager.getAllTasks());
     }
 }
