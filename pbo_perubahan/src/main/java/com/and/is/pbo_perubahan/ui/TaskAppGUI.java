@@ -7,8 +7,6 @@ import com.and.is.pbo_perubahan.service.TaskManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +17,9 @@ public class TaskAppGUI extends JFrame {
     private JTextField searchBar;
     private JComboBox<String> filterPriorityBox;
     private JComboBox<String> filterStatusBox;
+    private JComboBox<String> sortCriteriaBox;
+    private JButton sortOrderButton;
+    private boolean isAscending = true;
 
     public TaskAppGUI(TaskManager taskManager) {
         this.taskManager = taskManager;
@@ -35,7 +36,7 @@ public class TaskAppGUI extends JFrame {
         // Layout setup
         setLayout(new BorderLayout());
 
-        // Top Panel: Search and Filters
+        // Top Panel: Search, Filters, and Sorting
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchBar = new JTextField(20);
         JButton searchButton = new JButton("Search");
@@ -43,9 +44,14 @@ public class TaskAppGUI extends JFrame {
         filterPriorityBox = new JComboBox<>(new String[]{"All Priorities", "High", "Medium", "Low"});
         filterStatusBox = new JComboBox<>(new String[]{"All Statuses", "Completed", "Not Completed"});
 
+        sortCriteriaBox = new JComboBox<>(new String[]{"Priority", "Due Date"});
+        sortOrderButton = new JButton("Ascending");
+        sortOrderButton.addActionListener(e -> toggleSortOrder());
+
         searchButton.addActionListener(e -> searchTasks());
         filterPriorityBox.addActionListener(e -> refreshTable());
         filterStatusBox.addActionListener(e -> refreshTable());
+        sortCriteriaBox.addActionListener(e -> refreshTable());
 
         topPanel.add(new JLabel("Search:"));
         topPanel.add(searchBar);
@@ -54,6 +60,9 @@ public class TaskAppGUI extends JFrame {
         topPanel.add(filterPriorityBox);
         topPanel.add(new JLabel("Filter by Status:"));
         topPanel.add(filterStatusBox);
+        topPanel.add(new JLabel("Sort by:"));
+        topPanel.add(sortCriteriaBox);
+        topPanel.add(sortOrderButton);
 
         add(topPanel, BorderLayout.NORTH);
 
@@ -64,38 +73,29 @@ public class TaskAppGUI extends JFrame {
 
         // Bottom Panel: Action Buttons
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton addButton = new JButton("Add Task");
-        JButton editButton = new JButton("Edit Task");
-        JButton deleteButton = new JButton("Delete Task");
-        JButton markCompleteButton = new JButton("Mark as Completed");
         JButton saveButton = new JButton("Save");
-
-        addButton.addActionListener(e -> openTaskForm(null));
-        editButton.addActionListener(e -> editSelectedTask());
-        deleteButton.addActionListener(e -> deleteSelectedTask());
-        markCompleteButton.addActionListener(e -> markTaskAsCompleted());
         saveButton.addActionListener(e -> saveTasks());
 
-        bottomPanel.add(addButton);
-        bottomPanel.add(editButton);
-        bottomPanel.add(deleteButton);
-        bottomPanel.add(markCompleteButton);
         bottomPanel.add(saveButton);
-
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
+    private void toggleSortOrder() {
+        isAscending = !isAscending;
+        sortOrderButton.setText(isAscending ? "Ascending" : "Descending");
+        refreshTable();
+    }
+
     private void refreshTable() {
-        // Get filtered tasks
         List<Task> filteredTasks = taskManager.getAllTasks().stream()
                 .filter(task -> filterPriority(task) && filterStatus(task))
                 .collect(Collectors.toList());
 
-        // Table Model
+        sortTasks(filteredTasks);
+
         DefaultTableModel tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(new String[]{"Title", "Description", "Due Date", "Category", "Priority", "Status"});
 
-        // Populate table rows
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         for (Task task : filteredTasks) {
             tableModel.addRow(new Object[]{
@@ -123,20 +123,34 @@ public class TaskAppGUI extends JFrame {
                 || (selectedStatus.equals("Not Completed") && !task.isCompleted());
     }
 
+    private void sortTasks(List<Task> tasks) {
+        String selectedCriteria = (String) sortCriteriaBox.getSelectedItem();
+
+        tasks.sort((task1, task2) -> {
+            int comparison = 0;
+            if ("Priority".equals(selectedCriteria)) {
+                comparison = task1.getPriority().compareTo(task2.getPriority());
+            } else if ("Due Date".equals(selectedCriteria)) {
+                if (task1.getDueDate() == null) return isAscending ? 1 : -1;
+                if (task2.getDueDate() == null) return isAscending ? -1 : 1;
+                comparison = task1.getDueDate().compareTo(task2.getDueDate());
+            }
+            return isAscending ? comparison : -comparison;
+        });
+    }
+
     private void searchTasks() {
         String query = searchBar.getText().toLowerCase();
-        List<Task> searchResults = taskManager.getAllTasks().stream()
-                .filter(task -> task.getTitle().toLowerCase().contains(query)
-                        || task.getDescription().toLowerCase().contains(query))
+        List<Task> searchedTasks = taskManager.getAllTasks().stream()
+                .filter(task -> task.getTitle().toLowerCase().contains(query))
                 .collect(Collectors.toList());
 
-        // Table Model for search results
-        DefaultTableModel searchTableModel = new DefaultTableModel();
-        searchTableModel.setColumnIdentifiers(new String[]{"Title", "Description", "Due Date", "Category", "Priority", "Status"});
+        DefaultTableModel tableModel = new DefaultTableModel();
+        tableModel.setColumnIdentifiers(new String[]{"Title", "Description", "Due Date", "Category", "Priority", "Status"});
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        for (Task task : searchResults) {
-            searchTableModel.addRow(new Object[]{
+        for (Task task : searchedTasks) {
+            tableModel.addRow(new Object[]{
                     task.getTitle(),
                     task.getDescription(),
                     task.getDueDate() != null ? task.getDueDate().format(formatter) : "No Due Date",
@@ -146,60 +160,11 @@ public class TaskAppGUI extends JFrame {
             });
         }
 
-        taskTable.setModel(searchTableModel);
-    }
-
-    private void openTaskForm(Task task) {
-        TaskForm taskForm = new TaskForm(this, task);
-        taskForm.setVisible(true);
-
-        if (taskForm.isSaved()) {
-            if (task == null) {
-                taskManager.addTask(taskForm.getTask());
-            } else {
-                taskManager.updateTask(task.getTitle(), taskForm.getTask());
-            }
-            refreshTable();
-        }
-    }
-
-    private void editSelectedTask() {
-        int selectedRow = taskTable.getSelectedRow();
-        if (selectedRow != -1) {
-            String title = (String) taskTable.getValueAt(selectedRow, 0);
-            Task task = taskManager.findTaskByTitle(title);
-            if (task != null) {
-                openTaskForm(task);
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a task to edit.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void deleteSelectedTask() {
-        int selectedRow = taskTable.getSelectedRow();
-        if (selectedRow != -1) {
-            String title = (String) taskTable.getValueAt(selectedRow, 0);
-            taskManager.deleteTask(title);
-            refreshTable();
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a task to delete.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void markTaskAsCompleted() {
-        int selectedRow = taskTable.getSelectedRow();
-        if (selectedRow != -1) {
-            String title = (String) taskTable.getValueAt(selectedRow, 0);
-            taskManager.markTaskAsCompleted(title);
-            refreshTable();
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a task to mark as completed.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
+        taskTable.setModel(tableModel);
     }
 
     private void saveTasks() {
         FileStorage.save(taskManager.getAllTasks());
-        JOptionPane.showMessageDialog(this, "Tasks saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, "Tasks saved successfully!");
     }
 }
