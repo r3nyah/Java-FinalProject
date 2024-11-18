@@ -30,54 +30,68 @@ public class TaskAppGUI extends JFrame {
     private void initUI() {
         setTitle("To-Do List Application");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setSize(900, 700);
         setLocationRelativeTo(null);
-
-        // Layout setup
         setLayout(new BorderLayout());
 
+        // Main Panel with margin
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins
+
         // Top Panel: Search, Filters, and Sorting
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Inner spacing
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         searchBar = new JTextField(20);
         JButton searchButton = new JButton("Search");
+        searchButton.addActionListener(e -> searchTasks());
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchBar);
+        searchPanel.add(searchButton);
 
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         filterPriorityBox = new JComboBox<>(new String[]{"All Priorities", "High", "Medium", "Low"});
         filterStatusBox = new JComboBox<>(new String[]{"All Statuses", "Completed", "Not Completed"});
-
         sortCriteriaBox = new JComboBox<>(new String[]{"Priority", "Due Date"});
         sortOrderButton = new JButton("Ascending");
         sortOrderButton.addActionListener(e -> toggleSortOrder());
 
-        searchButton.addActionListener(e -> searchTasks());
         filterPriorityBox.addActionListener(e -> refreshTable());
         filterStatusBox.addActionListener(e -> refreshTable());
         sortCriteriaBox.addActionListener(e -> refreshTable());
 
-        topPanel.add(new JLabel("Search:"));
-        topPanel.add(searchBar);
-        topPanel.add(searchButton);
-        topPanel.add(new JLabel("Filter by Priority:"));
-        topPanel.add(filterPriorityBox);
-        topPanel.add(new JLabel("Filter by Status:"));
-        topPanel.add(filterStatusBox);
-        topPanel.add(new JLabel("Sort by:"));
-        topPanel.add(sortCriteriaBox);
-        topPanel.add(sortOrderButton);
+        filterPanel.add(new JLabel("Filter by Priority:"));
+        filterPanel.add(filterPriorityBox);
+        filterPanel.add(new JLabel("Filter by Status:"));
+        filterPanel.add(filterStatusBox);
+        filterPanel.add(new JLabel("Sort by:"));
+        filterPanel.add(sortCriteriaBox);
+        filterPanel.add(sortOrderButton);
 
-        add(topPanel, BorderLayout.NORTH);
+        topPanel.add(searchPanel);
+        topPanel.add(filterPanel);
 
-        // Center Panel: Table
+        mainPanel.add(topPanel, BorderLayout.NORTH);
+
+        // Center Panel: Task Table
         taskTable = new JTable();
         JScrollPane tableScrollPane = new JScrollPane(taskTable);
-        add(tableScrollPane, BorderLayout.CENTER);
+        tableScrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins around table
+        mainPanel.add(tableScrollPane, BorderLayout.CENTER);
 
         // Bottom Panel: Action Buttons
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Margins
         JButton saveButton = new JButton("Save");
         saveButton.addActionListener(e -> saveTasks());
-
         bottomPanel.add(saveButton);
-        add(bottomPanel, BorderLayout.SOUTH);
+
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        // Add main panel to frame
+        add(mainPanel);
     }
 
     private void toggleSortOrder() {
